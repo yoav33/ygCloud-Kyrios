@@ -1,10 +1,10 @@
 # ygCloud Kyrios - MAIN
 # Kyrios, or kurios, is a Greek word which is usually translated as "lord" or "master".
-# ygCloud Kyrios: the "host" of ygCloud - the backend.
 # https://github.com/yoav33
 
 import configparser
 import socket
+import os
 
 # connected device class: basically for managing if a device is approved or not (passkey correct, or remembered)
 class connectedDevice:
@@ -15,68 +15,80 @@ class connectedDevice:
 config = configparser.ConfigParser()
 config.read(r'kyrios.conf')
 
-host = ''
-port = int(config.get('server', 'port'))
-passkey = (config.get('server', 'passkey'))
-connections = (config.get('server', 'connections'))
-s = socket.socket()
+#import socket
+import select
+import time
 
-#if ((config.get('server', 'approveallconnections')) == "y"):
-    #devaccepted = True
-#else:
-    #devaccepted = False
+HOST = 'localhost'
+PORT = (config.get('server', 'port'))
+PASSKEY = (config.get('server', 'passkey'))
 
-# this verifies connections - asks for passkey. name: ip:port of connected client. default: whether the client got accepted or not. usually should start with n.
-# default is later checked again. default is boolean.
-def verifyConnection():
-    con, addr = s.accept()
-    data = con.recv(1024)
-    # real quick grab name
-    passin = data.decode()
-    print("passin: " + passin)
-    expected = (f"passkey={passkey}")
-    print("expected: " + expected)
-    global devaccepted
-    if passin==expected:
-        print("now setting yes..")
-        devaccepted = True
-        print(devaccepted)
-        return devaccepted
+ACK_TEXT = 'text_received'
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind((HOST, int(PORT)))
+    sock.listen()
+    print('waiting for client connection...')
+    conn, addr = sock.accept()      # Note: execution waits here until the client calls sock.connect()
+    print('client connected, waiting for passkey')
+    passkeymessage = 'sendpasskey'
+    print(f"sending: {passkeymessage}")
+    verifyPasskey(passkeymessage, conn, PASSKEY)
+
+    myCounter = 0
+    while True:
+        message = 'message ' + str(myCounter)
+        print('sending: ' + message)
+        sendTextViaSocket(message, conn)
+        myCounter += 1
+        time.sleep(1)
+    # end while
+# end function
+
+def verifyPasskey(send, sock, PASSKEY):
+    encReq = bytes(send, 'utf-8') #encReq = encoded request
+    sock.sendall(encReq)
+    encPK = sock.recv(1024) #encodedPasskey
+    Pkin = encPK.decode('utf-8')
+    print(f"Pkin={Pkin}")
+    expectedPkin = f"passkey={PASSKEY}"
+    print(f"expectedPkin={expectedPkin}")
+    if Pkin==expectedPkin:
+        print("passkey verified! sending accepted message")
+        encAcc = bytes("passkeyaccepted", 'utf-8')
+        sock.sendall(encAcc)
+        encAck = sock.recv(1024)
+        Ack = encAck.decode('utf-8')
+        if Ack=="approval acknowledged":
+            print("approval acknowledged! sending request of task.")
+            encReq = bytes('sendtask', 'utf-8')  # encReq = encoded request
+            sock.sendall(encReq)
     else:
-        if ((config.get('server', 'approveallconnections')) == "y"):
-            devaccepted = True
-        else:
-            devaccepted = False
-        return devaccepted
+        print("passkey verified! sending accepted message")
+        encAcc = bytes("passkeyrejected", 'utf-8')
+        sock.sendall(encAcc)
+        print("passkey declined! sending rejection message and restarting")
 
-# s.listen(int(connections))
-s.bind((host, port))
-s.listen(5)
-print("listening for connections.")
 
-def sendTextViaSocket(message):
-    s.bind((hostname.ipadd), )
+def sendTextViaSocket(message, sock):
+    # encode the text message
     encodedMessage = bytes(message, 'utf-8')
-    s.sendall(encodedMessage)
+
+    # send the data via the socket to the server
+    sock.sendall(encodedMessage)
+
+    # receive acknowledgment from the server
     encodedAckText = sock.recv(1024)
     ackText = encodedAckText.decode('utf-8')
-    print(f"acktext={ackText}")
 
-# forever loop!
+    # log if acknowledgment was successful
+    if ackText == ACK_TEXT:
+        print('server acknowledged reception of text')
+    else:
+        print('error: server has sent back ' + ackText)
+    # end if
+
 while True:
-    verifyConnection()
-    print(f"accepted: {devaccepted}")
-    hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
-    print(hostname)
-    print(ip_address)
-    hostname = connectedDevice()
-    hostname.ipadd = (f"{ip_address}")
-    hostname.approved = devaccepted
-    hostname.cert = "Y21ES"
-    print(hostname.cert)
-    print()
-    print("device details class:")
-    print(f"IP={hostname.ipadd}, approved={hostname.approved}")
-    print("now trying function...")
-    sendTextViaSocket("MESSAGE!@2")
+    main()

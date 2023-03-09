@@ -2,43 +2,62 @@ import socket
 import configparser
 import time
 
-def authenticate(sendpass):
-    s.send(f'passkey={sendpass}'.encode())
-
-s = socket.socket()
-print ("Socket created successfully.")
 config = configparser.ConfigParser()
 config.read(r'client.conf')
 
-host = config.get('server', 'host')
-port = int(config.get('server', 'port'))
+HOST = (config.get('server', 'host'))
+PORT = (config.get('server', 'port'))
+PASSKEY = (config.get('server', 'passkey'))
 
-s.connect((host, port))
-print('Connection Established.')
+ACK_TEXT = 'text_received'
 
-# first attempt authentication.
-authenticate(config.get('server', 'passkey'))
+def verifyPasskey(Pksend, sock, PASSKEY):
+    encReq = sock.recv(1024)
+    Req = encReq.decode('utf-8')
+    print(f"Req={Req}")
+    if Req=="sendpasskey":
+        pk = f"passkey={PASSKEY}"
+        print(f"pk request confirmed. sending={pk}")
+        encPk= bytes(pk, 'utf-8')
+        sock.sendall(encPk)
+        encOutcome = sock.recv(1024)
+        outcome = encOutcome.decode('utf-8')
+        print(f"outcome={outcome}")
+        if outcome=='passkeyaccepted':
+            print("accepted! sending acknowledgement")
+            ack = bytes('approval acknowledged', 'utf-8')
+            sock.sendall(ack)
+            encReq = sock.recv(1024)
+            Req = encReq.decode('utf-8')
+            if Req=="sendpasskey":
+                print("error: passkey requested again. exiting..")
+                exit()
+            if Req=='sendtask':
+                print("requested to send task")
+                #sendTask()
 
-def receiveTextViaSocket():
-    # get the text via the scoket
-    encodedMessage = s.recv(1024)
+        else:
+            print("rejected. exiting...")
+            exit()
+    else:
+        print("request text does not match expectations!")
 
-    # if we didn't get anything, log an error and bail
-    if not encodedMessage:
-        print('error: encodedMessage was received as None')
-        return None
-    # end if
-
-    # decode the received text message
-    message = encodedMessage.decode('utf-8')
-    print(f"message={message}")
-
-    # now time to send the acknowledgement
-    # encode the acknowledgement text
-    encodedAckText = bytes(ACK_TEXT, 'utf-8')
-    # send the encoded acknowledgement text
-    s.sendall(encodedAckText)
-    print("send acktext")
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print('socket instantiated')
+    connectionSuccessful = False
+    while not connectionSuccessful:
+        try:
+            sock.connect((HOST, int(PORT)))    # Note: if execution gets here before the server starts up, this line will cause an error, hence the try-except
+            print('socket connected')
+            connectionSuccessful = True
+        except:
+            pass
+        # end try
+    # verify passkey!
+    verifyPasskey(PASSKEY, sock, PASSKEY)
+    # now send task:
 
 while True:
-    receiveTextViaSocket()
+    main()
+    # here you put the task!
