@@ -23,7 +23,7 @@ config.read(r'kyrios.conf')
 import select
 import time
 
-HOST = 'localhost'
+HOST = '0.0.0.0'
 PORT = (config.get('server', 'port'))
 PASSKEY = (config.get('server', 'passkey'))
 
@@ -33,6 +33,7 @@ def main():
     sock.listen()
     print()
     print('waiting for client connection...')
+    print(f"listening on: {HOST}:{PORT}")
     conn, addr = sock.accept()      # Note: execution waits here until the client calls sock.connect()
     print('client connected, waiting for passkey')
     passkeymessage = 'sendpasskey'

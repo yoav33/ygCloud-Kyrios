@@ -43,8 +43,10 @@ def verifyPasskey(Pksend, sock, PASSKEY):
 
 def main(sock):
     connectionSuccessful = False
+    print("csucc=false")
     while not connectionSuccessful:
         try:
+            print(f"trying to connect to: {HOST}:{PORT}")
             sock.connect((HOST, int(PORT)))    # Note: if execution gets here before the server starts up, this line will cause an error, hence the try-except
             print('socket connected')
             connectionSuccessful = True
