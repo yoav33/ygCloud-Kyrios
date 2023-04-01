@@ -43,7 +43,6 @@ def verifyPasskey(Pksend, sock, PASSKEY):
 
 def main(sock):
     connectionSuccessful = False
-    print("csucc=false")
     while not connectionSuccessful:
         try:
             print(f"trying to connect to: {HOST}:{PORT}")
@@ -58,4 +57,5 @@ def main(sock):
     # now send task:
 
 main(sock)
+sock.sendall(bytes('stratussend', 'utf-8'))
     # here you put the task!
