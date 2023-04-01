@@ -26,12 +26,13 @@ HOST = "0.0.0.0"
 PORT = (config.get('server', 'port'))
 PASSKEY = (config.get('server', 'passkey'))
 
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+sock.bind(("0.0.0.0", int(PORT)))
+
 def main():
     print("--------------")
     print(f"listening on {HOST}:{PORT}")
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("0.0.0.0", int(PORT)))
     sock.listen()
     print('waiting for client connection...')
     conn, addr = sock.accept()      # Note: execution waits here until the client calls sock.connect()
@@ -172,4 +173,8 @@ class RainDropUser:
     port = 0000
 
 while True:
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("keyboardinterrupt. closing socket")
+        sock.close()
